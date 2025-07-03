@@ -1,17 +1,16 @@
-'use strict'
-
-const { expect } = require('chai')
-
-const { countInDegrees } = require('./utils')
+import { expect } from 'chai'
+import { countInDegrees } from './utils'
+import { DAG } from './types'
+import { describe, it } from 'vitest'
 
 describe('countInDegrees', () => {
     it('counts in-degrees for an empty DAG', () => {
-        const DAG = {}
+        const DAG: DAG = {}
         expect(countInDegrees(DAG)).to.deep.equal({})
     })
 
     it('counts in-degrees for a small DAG', () => {
-        const DAG = {
+        const DAG: DAG = {
             a: ['b'],
             b: [],
         }
@@ -22,7 +21,7 @@ describe('countInDegrees', () => {
     })
 
     it('counts in-degrees for a medium DAG', () => {
-        const DAG = {
+        const DAG: DAG = {
             a: ['b', 'c'],
             b: ['c'],
             c: [],
@@ -37,8 +36,8 @@ describe('countInDegrees', () => {
     })
 
     it('counts in-degrees for a bigger DAG', () => {
-        const DAG = {
-            a: ['c', 'f'], // `a` is a dependency of `c` and `f`
+        const DAG: DAG = {
+            a: ['c', 'f'],
             b: ['d', 'e'],
             c: ['f'],
             d: ['f', 'g'],

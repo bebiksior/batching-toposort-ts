@@ -1,9 +1,8 @@
-'use strict'
-
-const { expect } = require('chai')
-const jsc = require('jsverify')
-
-const batchingToposort = require('./index')
+import { expect } from 'chai'
+import * as jsc from 'jsverify'
+import batchingToposort from './index'
+import { DAG } from './types'
+import { describe, it } from 'vitest'
 
 describe('batchingToposort', () => {
     it('toposorts an empty graph', () => {
@@ -53,26 +52,26 @@ describe('batchingToposort', () => {
     })
 
     it('errors on a small cyclic graph', () => {
-        const dg = {
+        const dg: DAG = {
             a: ['b'],
             b: ['a'],
             c: [],
         }
-        const sortCyclicGraph = () => {
+        const sortCyclicGraph = (): void => {
             batchingToposort(dg)
         }
         expect(sortCyclicGraph).to.throw(Error)
     })
 
     it('errors on a larger cyclic graph', () => {
-        const dg = {
+        const dg: DAG = {
             a: ['b', 'c'],
             b: ['c'],
             c: ['d', 'e'],
             d: ['b'],
             e: [],
         }
-        const sortCyclicGraph = () => {
+        const sortCyclicGraph = (): void => {
             batchingToposort(dg)
         }
         expect(sortCyclicGraph).to.throw(Error)
@@ -85,36 +84,30 @@ describe('batchingToposort', () => {
         const asciinestringGen = jsc.asciinestring.generator
 
         // Default array gen grows by log2 of `size` param. This is linear.
-        // :: Generator a -> Generator [a]
-        const arrayGen = gen =>
-            jsc.generator.bless(size =>
+        const arrayGen = <T>(gen: jsc.Generator<T>): jsc.Generator<T[]> =>
+            jsc.generator.bless((size: number) =>
                 Array(jsc.random(0, size))
                     .fill(gen)
-                    .map(g => g(size))
+                    .map((g: jsc.Generator<T>) => g(size))
             )
 
-        // :: (Int, Generator a) -> Generator [a]
-        const replicate = (n, g) =>
+        const replicate = <T>(n: number, g: jsc.Generator<T>): jsc.Generator<T[]> =>
             n === 0
                 ? pure([]) // `tuple` cannot be empty
                 : tupleGen(Array(n).fill(g))
 
-        // :: [a] -> [a]
-        const dedupe = arr => [...new Set(arr)]
+        const dedupe = <T>(arr: T[]): T[] => [...new Set(arr)]
 
-        // :: Generator NonEmptyString
         const idGen = arrayGen(asciinestringGen).map(dedupe)
 
-        // :: (String, DAG) -> DAG
-        const removeVx = (rmId, dag) =>
-            Object.entries(dag).reduce((newDag, [id, deps]) => {
+        const removeVx = (rmId: string, dag: DAG): DAG =>
+            Object.entries(dag).reduce((newDag: DAG, [id, deps]) => {
                 if (id !== rmId) newDag[id] = deps.filter(dep => dep !== rmId)
                 return newDag
             }, {})
 
-        // :: (String, String, Dag) -> Dag
-        const removeEdge = (edgeStart, edgeEnd, dag) =>
-            Object.entries(dag).reduce((newDag, [id, deps]) => {
+        const removeEdge = (edgeStart: string, edgeEnd: string, dag: DAG): DAG =>
+            Object.entries(dag).reduce((newDag: DAG, [id, deps]) => {
                 newDag[id] = deps.filter(
                     dep => !(id === edgeStart && dep === edgeEnd)
                 )
@@ -124,11 +117,11 @@ describe('batchingToposort', () => {
         // "environment" of arbitrary instances
         const env = {
             dag: jsc.bless({
-                generator: idGen.flatmap(vertexIds => {
+                generator: idGen.flatmap((vertexIds: string[]) => {
                     const numVxs = vertexIds.length
-                    const numEdges = numVxs * (numVxs - 1) / 2
-                    return replicate(numEdges, boolGen).flatmap(edgeBools => {
-                        const dag = {}
+                    const numEdges = (numVxs * (numVxs - 1)) / 2
+                    return replicate(numEdges, boolGen).flatmap((edgeBools: boolean[]) => {
+                        const dag: DAG = {}
                         let edgeIdx = 0
                         for (let vx = 0; vx < numVxs; vx++) {
                             const vxId = vertexIds[vx]
@@ -142,8 +135,8 @@ describe('batchingToposort', () => {
                         return pure(dag)
                     })
                 }),
-                shrink: jsc.shrink.bless(dag => {
-                    const dags = []
+                shrink: jsc.shrink.bless((dag: DAG) => {
+                    const dags: DAG[] = []
                     Object.entries(dag).forEach(([id, deps]) => {
                         dags.push(removeVx(id, dag))
                         deps.forEach(dep => {
@@ -152,7 +145,7 @@ describe('batchingToposort', () => {
                     })
                     return dags
                 }),
-                show: a => JSON.stringify(a),
+                show: (a: DAG) => JSON.stringify(a),
             }),
         }
 
@@ -163,7 +156,7 @@ describe('batchingToposort', () => {
 
         it('DAGs sort without error', () => {
             jsc.assert(
-                jsc.forall('dag', env, dag => {
+                jsc.forall('dag', env, (dag: DAG) => {
                     batchingToposort(dag)
                     return true
                 }),
@@ -173,9 +166,9 @@ describe('batchingToposort', () => {
 
         it('toposorted DAGs do not lose tasks', () => {
             jsc.assert(
-                jsc.forall('dag', env, dag => {
+                jsc.forall('dag', env, (dag: DAG) => {
                     const sorted = batchingToposort(dag)
-                    const flattened = [].concat.apply([], sorted)
+                    const flattened: string[] = ([] as string[]).concat.apply([], sorted)
                     return flattened.length === Object.keys(dag).length
                 }),
                 opts
@@ -184,7 +177,7 @@ describe('batchingToposort', () => {
 
         it('toposorted DAGs contain no empty sublists', () => {
             jsc.assert(
-                jsc.forall('dag', env, dag => {
+                jsc.forall('dag', env, (dag: DAG) => {
                     const sorted = batchingToposort(dag)
                     return !sorted.some(sublist => !sublist.length)
                 }),
@@ -194,7 +187,7 @@ describe('batchingToposort', () => {
 
         it('toposort is externally pure', () => {
             jsc.assert(
-                jsc.forall('dag', env, dag => {
+                jsc.forall('dag', env, (dag: DAG) => {
                     Object.values(dag).forEach(list => Object.freeze(list))
                     Object.freeze(dag)
                     batchingToposort(dag)
