@@ -23,7 +23,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "vitest",
+    "test": "vitest run",
     "test-watch": "vitest --watch",
     "prepublishOnly": "pnpm test && pnpm build",
     "dev": "tsc --watch"
